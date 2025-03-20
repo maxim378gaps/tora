@@ -8,6 +8,7 @@ const clickSound = document.getElementById('clickSound');
 const completeSound = document.getElementById('completeSound');
 const menuButton = document.getElementById('menu-button');
 const statusText = document.getElementById('status-text');
+const progressBar = document.querySelector('.progress-bar');
 
 // Данные для перевода
 const translations = {
@@ -73,17 +74,13 @@ function generateMultiplier() {
             currentStep++;
         }
     }, 100);
+
+    return targetMultiplier;
 }
 
 // Функция для генерации шанса выигрыша
-function generateWinChance(multiplier) {
-    if (multiplier >= 5.00) {
-        // Для множителей от 5.00 и выше шанс 70.00-85.00%
-        return (Math.random() * (85.00 - 70.00) + 70.00).toFixed(2);
-    } else {
-        // Для множителей ниже 5.00 шанс 93.00-97.00%
-        return (Math.random() * (97.00 - 93.00) + 93.00).toFixed(2);
-    }
+function generateWinChance() {
+    return (Math.random() * (97.00 - 77.00) + 77.00).toFixed(2);
 }
 
 // Функция для запуска анимации прогресса
@@ -107,12 +104,13 @@ function startProgressAnimation() {
             isProgressRunning = false;
             localStorage.setItem('isProgressRunning', 'false');
             getSignalButton.disabled = false;
-            resetProgress();
-            completeSound.play();
-            multiplierElement.textContent = '';
-            winChanceElement.textContent = '';
-            winChanceLabel.style.display = 'none';
-            winChanceElement.style.display = 'none';
+
+            // Скрываем шкалу после завершения
+            progressFill.style.transition = 'none';
+            progressFill.style.width = '0';
+            progressBar.style.display = 'none';
+
+            // Меняем текст на "Вы снова можете получить сигнал"
             statusText.textContent = translations[currentLang].status_ready;
         }
     }
@@ -121,42 +119,36 @@ function startProgressAnimation() {
 
 // Функция для сброса прогресса
 function resetProgress() {
-    progressFill.style.transition = 'none';
     progressFill.style.width = '0';
 }
 
-// Обработчик нажатия на кнопку
-getSignalButton.addEventListener('click', () => {
-    if (isProgressRunning) return;
-
-    clickSound.play();
-    const multiplier = generateMultiplier();
-    const winChance = generateWinChance(parseFloat(multiplier));
-    winChanceElement.textContent = `${winChance}%`;
-
-    winChanceLabel.style.display = 'block';
-    winChanceElement.style.display = 'block';
-
-    getSignalButton.disabled = true;
-    resetProgress();
-    startProgressAnimation();
-});
-
-// Восстановление состояния прогресса при загрузке страницы
-window.addEventListener('load', () => {
+// Инициализация после загрузки DOM
+document.addEventListener('DOMContentLoaded', () => {
     const preloader = document.getElementById('preloader');
-    preloader.style.display = 'none';
+    if (preloader) {
+        preloader.style.display = 'none';
+    }
 
     if (isProgressRunning) {
         const elapsed = Date.now() - progressStartTime;
         if (elapsed < progressDuration) {
             const remainingTime = progressDuration - elapsed;
+
+            // Устанавливаем текущий прогресс шкалы
             progressFill.style.width = `${(elapsed / progressDuration) * 100}%`;
+
+            // Убираем переход, чтобы шкала не сбрасывалась
+            progressFill.style.transition = 'none';
+
+            // Запускаем анимацию для оставшегося времени
+            setTimeout(() => {
+                progressFill.style.transition = `width ${remainingTime}ms linear`;
+                progressFill.style.width = '100%';
+            }, 10); // Небольшая задержка для корректного применения transition
+
             getSignalButton.disabled = true;
 
-            progressFill.style.transition = `width ${remainingTime}ms linear`;
-            progressFill.style.width = '100%';
-
+            // Показываем текст "Сигнал будет доступен, когда заполнится шкала"
             statusText.textContent = translations[currentLang].status_waiting;
             statusText.style.display = 'block';
 
@@ -164,26 +156,76 @@ window.addEventListener('load', () => {
                 isProgressRunning = false;
                 localStorage.setItem('isProgressRunning', 'false');
                 getSignalButton.disabled = false;
-                resetProgress();
+
+                // Скрываем шкалу после завершения
+                progressFill.style.transition = 'none';
+                progressFill.style.width = '0';
+                progressBar.style.display = 'none';
+
+                // Меняем текст на "Вы снова можете получить сигнал"
                 statusText.textContent = translations[currentLang].status_ready;
             }, remainingTime);
         } else {
             isProgressRunning = false;
             localStorage.setItem('isProgressRunning', 'false');
             getSignalButton.disabled = false;
-            resetProgress();
+
+            // Скрываем шкалу, если время истекло
+            progressFill.style.transition = 'none';
+            progressFill.style.width = '0';
+            progressBar.style.display = 'none';
+
+            // Меняем текст на "Вы снова можете получить сигнал"
             statusText.textContent = translations[currentLang].status_ready;
             statusText.style.display = 'block';
         }
     } else {
+        // Если прогресс не запущен, показываем текст "Вы снова можете получить сигнал"
         statusText.textContent = translations[currentLang].status_ready;
         statusText.style.display = 'block';
+
+        // Скрываем шкалу, если прогресс не запущен
+        progressBar.style.display = 'none';
     }
+
+    // Создание звезд
+    createStars();
+});
+
+// Обработчик нажатия на кнопку
+getSignalButton.addEventListener('click', () => {
+    if (isProgressRunning) return;
+
+    clickSound.play();
+
+    // Генерация множителя и шанса выигрыша
+    const multiplier = generateMultiplier();
+    const winChance = generateWinChance();
+
+    // Отображение множителя в кругу
+    multiplierElement.textContent = multiplier;
+
+    // Отображение шанса выигрыша
+    winChanceElement.textContent = `${winChance}%`;
+
+    winChanceLabel.style.display = 'block';
+    winChanceElement.style.display = 'block';
+
+    getSignalButton.disabled = true;
+
+    // Показываем шкалу и сбрасываем прогресс
+    progressBar.style.display = 'block';
+    resetProgress();
+
+    // Запускаем анимацию прогресса
+    startProgressAnimation();
 });
 
 // Создание звездочек
 function createStars() {
     const starsContainer = document.getElementById('stars-container');
+    if (!starsContainer) return;
+
     const starCount = 50;
     const circle = document.querySelector('.circle');
     const circleRect = circle.getBoundingClientRect();
@@ -203,13 +245,12 @@ function createStars() {
             y < circleRect.bottom
         );
 
-        star.style.transform = `translate(${x}px, ${y}px)`;
+        star.style.top = `${y}px`;
+        star.style.left = `${x}px`;
         star.style.animationDelay = `${Math.random() * 2}s`;
         starsContainer.appendChild(star);
     }
 }
-
-createStars();
 
 // Переключение языка
 function setLanguage(lang) {
@@ -235,10 +276,7 @@ setLanguage(currentLang);
 
 // Обработчик изменения размера окна
 window.addEventListener('resize', () => {
-    const stars = document.querySelectorAll('.star');
-    stars.forEach(star => {
-        const x = Math.random() * window.innerWidth;
-        const y = Math.random() * window.innerHeight;
-        star.style.transform = `translate(${x}px, ${y}px)`;
-    });
+    const starsContainer = document.getElementById('stars-container');
+    starsContainer.innerHTML = '';
+    createStars();
 });
